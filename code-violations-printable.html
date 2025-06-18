@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trash Pickup Schedule</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&family=Rubik+Mono+One&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Rubik", sans-serif;
+        background-color: #003153; 
+        color: #ffd700; 
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 900px;
+      }
+      .main-heading {
+        color: white;
+        font-family: "Rubik Mono One", sans-serif;
+        font-size: 8rem;
+        text-transform: uppercase;
+        letter-spacing: 5px;
+      }
+      #recycling-week-letter {
+        color: #ffd700; /* Gold color for A/B letter */
+      }
+      .sub-heading,
+      .time-display,
+      .date-display {
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: white;
+      }
+      /* Align text to the left on desktop */
+      .text-left-desktop {
+        text-align: left;
+      }
+      /* Three Column Info Section */
+      .info-columns {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 30px;
+        margin-bottom: 20px;
+      }
+      .info-column {
+        width: 30%;
+        font-size: 1rem;
+        color: white;
+      }
+
+      .table-container {
+        background-color: #ffd700;
+        color: #003153;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        margin-top: 20px;
+      }
+      .table-container table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+      .table-container th,
+      .table-container td {
+        padding: 10px;
+        border-bottom: 1px solid #003153;
+      }
+      .table-container th {
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .schedule-link {
+        color: #ffd700;
+        text-decoration: underline;
+        font-size: 1.2rem;
+      }
+      /* Search Input Styling */
+      .search-container {
+        margin-bottom: 15px;
+      }
+      .search-container input {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+      }
+      /* Responsive Styling for Smaller Screens */
+      @media (max-width: 768px) {
+        .main-heading {
+          font-size: 5rem;
+          text-align: center;
+        }
+        .sub-heading,
+        .time-display,
+        .date-display {
+          text-align: center;
+        }
+        .info-columns {
+          flex-direction: column;
+          text-align: center;
+        }
+        .info-column {
+          width: 100%;
+          margin-bottom: 15px;
+        }
+        .schedule-link {
+          text-align: center;
+          display: block;
+        }
+        .date-display {
+          color: #ffd700;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Main Heading Section -->
+       <img src="assets/nbd_lockups.png" alt="Code Enforcement Logo">
+      <p class="sub-heading text-left-desktop">
+        Today is <span class="date-display" id="current-date"></span>
+      </p>
+
+      <div class="info-columns">
+        <div class="info-column">
+          <p>
+ Lorem ipsum..
+          </p>
+        </div>
+      </div>
+      <!-- Trash Pickup Schedule Section -->
+      <div
+        class="table-container table-responsive"
+        id="lbyr-table-container"
+      >
+        <div class="search-container">
+          <input
+            class="form-control"
+            type="text"
+            id="search-input"
+            placeholder="Search by Section Block Lot (SBL) or address..."
+          />
+        </div>
+        <table class="table table-striped" id="lbyr-table">
+          <thead>
+            <tr>
+              <th>Section Block Lot (SBL)</th>
+              <th>Address</th>
+              <th>Violation Date</th>
+              <th>Violation</th>
+              <th>Comply By Date</th>
+            </tr>
+          </thead>
+          <tbody id="lbyr-table-body">
+            <!-- Results will be injected here -->
+          </tbody>
+        </table>
+        <div id="no-results" style="display: none">No results found.</div>
+     
+    <!-- jQuery and Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.6.0/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Axios for API calls -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+
+      // Fetch all trash pickup data with optional search term
+      async function fetchAllData(searchTerm) {
+        const baseUrl =
+          "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
+        let allFeatures = [];
+        let resultOffset = 0;
+
+        const params = {
+        where: searchTerm 
+            ? `(complaint_address LIKE '${searchTerm}%' OR SBL LIKE '${searchTerm}%')`
+            : "1=1",  // If no search term, return all results
+         outFields: "SBL,complaint_address,violation_date,violation, comply_by_date",
+        outSR: "4326",
+        f: "json",
+        resultRecordCount: 2000,
+    };
+        try {
+          while (true) {
+            const response = await axios.get(baseUrl, {
+              params: { ...params, resultOffset },
+            });
+            const features = response.data.features || [];
+            allFeatures = allFeatures.concat(features);
+            if (features.length < 2000) break;
+            resultOffset += 2000;
+          }
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        }
+        return allFeatures;
+        console.log(allFeatures)
+      }
+
+   
+      function renderTable(data) {
+        const tbody = document.getElementById("lbyr-table-body");
+        tbody.innerHTML = "";
+        if (data.length === 0) {
+          document.getElementById("no-results").style.display = "block";
+          return;
+        } else {
+          document.getElementById("no-results").style.display = "none";
+        }
+        data.forEach((feature) => {
+          const attrs = feature.attributes;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${attrs.SBL || ""}</td>
+                      <td>${attrs.complaint_address || ""}</td>
+                      <td>${attrs.violation_date || ""}</td>
+                      <td>${attrs.violation || ""}</td>
+                      <td>${attrs.comply_by_date || ""}</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Get current date
+       function getDate() {
+        const today = new Date();
+
+        document.getElementById("current-date").textContent = today
+          .toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+          .toUpperCase();
+       }
+
+      async function handleSearch() {
+        const searchInput = document.getElementById("search-input");
+        const searchTerm = searchInput.value.trim();
+        const data = await fetchAllData(searchTerm);
+       
+        const filtered = data.filter((feature) => {
+          const attrs = feature.attributes;
+          const sbl = attrs.sbl;
+          if (!attrs.complaint_address) return false;
+          const address = attrs.complaint_address.toLowerCase();
+          const violation_date = attrs.violation_date ? attrs.violation_date.toString() : "";
+          return (
+            address.includes(searchTerm.toLowerCase()) ||
+            sbl.includes(searchTerm)
+          );
+        });
+        renderTable(filtered);
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        getDate();
+        handleSearch();
+        document
+          .getElementById("search-input")
+          .addEventListener("input", handleSearch);
+      });
+    </script>
+  </body>
+</html>
