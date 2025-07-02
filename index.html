@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trash Pickup Schedule</title>
+    <title>Code Violations Printable</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&family=Rubik+Mono+One&display=swap"
       rel="stylesheet"
@@ -16,8 +16,8 @@
     <style>
       body {
         font-family: "Rubik", sans-serif;
-        background-color: #003153; 
-        color: #ffd700; 
+        background-color: #2e3192; 
+        color: #edd918; 
         padding: 20px;
         line-height: 1.6;
       }
@@ -32,7 +32,7 @@
         letter-spacing: 5px;
       }
       #recycling-week-letter {
-        color: #ffd700; /* Gold color for A/B letter */
+        color: #262262; /* Blue color for A/B letter when printed*/
       }
       .sub-heading,
       .time-display,
@@ -141,7 +141,7 @@
           </p>
         </div>
       </div>
-      <!-- Trash Pickup Schedule Section -->
+      <!-- Violations Section -->
       <div
         class="table-container table-responsive"
         id="lbyr-table-container"
@@ -168,7 +168,7 @@
             <!-- Results will be injected here -->
           </tbody>
         </table>
-        <div id="no-results" style="display: none">No results found.</div>
+        <div id="no-results" style="display: none">No lots found with violations.</div>
      
     <!-- jQuery and Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -178,7 +178,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
 
-      // Fetch all trash pickup data with optional search term
+      // Fetch all violations data with optional search term
       async function fetchAllData(searchTerm) {
         const baseUrl =
           "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
@@ -213,6 +213,16 @@
 
    
       function renderTable(data) {
+        
+        //new add - BH**********
+        const formatDate = (value) => {
+           if (!value) return "";
+            const date = new Date(value);
+            if (isNaN(date)) return value; // fallback in case of bad format
+              return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+          };
+        //end of new add - BH**********
+
         const tbody = document.getElementById("lbyr-table-body");
         tbody.innerHTML = "";
         if (data.length === 0) {
@@ -224,11 +234,22 @@
         data.forEach((feature) => {
           const attrs = feature.attributes;
           const tr = document.createElement("tr");
+
+          //commenting this section out while testing below new addition BH**********
+          // tr.innerHTML = `<td>${attrs.SBL || ""}</td>
+          //             <td>${attrs.complaint_address || ""}</td>
+          //             <td>${attrs.violation_date || ""}</td>
+          //             <td>${attrs.violation || ""}</td>
+          //             <td>${attrs.comply_by_date || ""}</td>`;
+        
+         //new add - BH**********
           tr.innerHTML = `<td>${attrs.SBL || ""}</td>
-                      <td>${attrs.complaint_address || ""}</td>
-                      <td>${attrs.violation_date || ""}</td>
-                      <td>${attrs.violation || ""}</td>
-                      <td>${attrs.comply_by_date || ""}</td>`;
+                <td>${attrs.complaint_address || ""}</td>
+                <td>${formatDate(attrs.violation_date)}</td>
+                <td>${attrs.violation || ""}</td>
+                <td>${formatDate(attrs.comply_by_date)}</td>`
+         //end of new add-BH**********
+
           tbody.appendChild(tr);
         });
       }
