@@ -9,57 +9,62 @@
   <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"/>
 
   <style>
+
         body{
        font-family: "Rubik", sans-serif;
         background-color: #D3D3D3; 
         color: #003153; 
         padding: 20px;
         line-height: 1.6;
-    }
-    .container{max-width:900px;}
 
-    .main-heading{
-      font-family:"Rubik Mono One",sans-serif;
-      font-size:2.2rem;
-      text-transform:uppercase;
-      letter-spacing:2px;
-      color:#003153;
     }
+    .container { max-width: 900px; }
+
+    .main-heading {
+      font-family: "Rubik Mono One", sans-serif;
+      font-size: 2.2rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #003153;
+    }
+
     .sub-heading{
       font-size:1rem;
       font-weight:700;
       text-transform:uppercase;
       color: #003153;
+
     }
 
-    /* Table */
-    .table-container{
-      background:white;
-      color:#fff;
-      padding:15px;
-      border-radius:8px;
-      font-size:1rem;
-      margin-top:20px;
+    .table-container {
+      background: white;
+      color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-top: 20px;
     }
-    .table-container table{width:100%;border-collapse:collapse;text-align:left;}
-    .table-container th{background:#003153;color:#fff;padding:10px;text-transform:uppercase;}
-    .table-container td{color:#003153;background:#EDD918;padding:10px;border-bottom:1px solid #ccc;}
+    .table-container table { width: 100%; border-collapse: collapse; text-align: left; }
+    .table-container th { background: #003153; color: #fff; padding: 10px; text-transform: uppercase; }
+    .table-container td { color: #003153; background: #EDD918; padding: 10px; border-bottom: 1px solid #ccc; }
 
     /* Search */
-    .search-container{margin-bottom:15px;}
-    .search-container input{width:100%;padding:10px;border:none;border-radius:4px;font-size:1rem;}
+    .search-container { margin-bottom: 15px; }
+    .search-container input { width: 100%; padding: 10px; border: none; border-radius: 4px; font-size: 1rem; }
 
-    @media(max-width:768px){
-      .main-heading{text-align:center;font-size:1.8rem;}
-      .sub-heading{text-align:center;}
+    @media(max-width:768px) {
+      .main-heading { text-align: center; font-size: 1.8rem; }
+      .sub-heading { text-align: center; }
     }
   </style>
 </head>
 
 <body>
 <div class="container">
+
   <img src="assets/NBD_Lockups_Blue.png" alt="Code Enforcement Logo">
   <p class="sub-heading">As of <span id="current-date" class="date-display"> </span> there are </p>
+
 
   <!-- results summary goes here -->
   <div class="info-columns">
@@ -68,7 +73,7 @@
 
   <div class="table-container table-responsive">
     <div class="search-container">
-      <input class="form-control" id="search-input"
+      <input class="form-control" id="search-input" 
              placeholder="Search by Section-Block-Lot (SBL) or address…" />
     </div>
 
@@ -88,74 +93,90 @@
 
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
-  /* ---------- helpers ---------- */
-  const fmt = v=>v?new Date(v).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'';
-  const today = new Date(); document.getElementById('current-date').textContent =
-        today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}).toUpperCase();
+  // helpers
+  const fmt = v => v 
+    ? new Date(v).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}) 
+    : '';
+  const today = new Date();
+  document.getElementById('current-date').textContent =
+    today.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}).toUpperCase();
 
-  /* ---------- data fetch ---------- */
-  async function fetchAllData(term){
-    const url="https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
-    let out=[],offset=0,params={
-      where:term?`(complaint_address LIKE '${term}%' OR SBL LIKE '${term}%')`:"1=1",
-      outFields:"SBL,complaint_address,violation_date,violation,comply_by_date",
-      outSR:"4326",f:"json",resultRecordCount:2000
+  // data fetch 
+  async function fetchAllData(term) {
+    const url = "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
+    let out = [], offset = 0;
+    const params = {
+      where: term ? `(complaint_address LIKE '${term}%' OR SBL LIKE '${term}%')` : "1=1",
+      outFields: "SBL, complaint_address, violation_date, violation, comply_by_date",
+      outSR: "4326", f: "json", resultRecordCount: 2000
     };
-    try{
-      while(true){
-        const {data}=await axios.get(url,{params:{...params,resultOffset:offset}});
-        out=out.concat(data.features||[]);
-        if((data.features||[]).length<2000)break; offset+=2000;
+    try {
+      while (true) {
+        const { data } = await axios.get(url, { params: { ...params, resultOffset: offset } });
+        out = out.concat(data.features || []);
+        if ((data.features || []).length < 2000) break;
+        offset += 2000;
       }
-    }catch(e){console.error(e);}
+    } catch (e) {
+      console.error(e);
+    }
     return out;
   }
 
-  /* ---------- table ---------- */
-  function renderTable(rows,term){
-    const tbody=document.getElementById('lbyr-table-body');
-    tbody.innerHTML='';
-    document.getElementById('no-results').style.display=rows.length?'none':'block';
+  // table 
+  function renderTable(rows, term) {
+    const tbody = document.getElementById('lbyr-table-body');
+    tbody.innerHTML = '';
+    document.getElementById('no-results').style.display = rows.length ? 'none' : 'block';
 
-    rows.forEach(f=>{
-      const a=f.attributes,tr=document.createElement('tr');
-      tr.innerHTML=`<td>${a.SBL||''}</td><td>${a.complaint_address||''}</td>
-                    <td>${fmt(a.violation_date)}</td><td>${a.violation||''}</td>
-                    <td>${fmt(a.comply_by_date)}</td>`;
+    rows.forEach(f => {
+      const a = f.attributes;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${a.SBL || ''}</td><td>${a.complaint_address || ''}</td>
+                      <td>${fmt(a.violation_date)}</td><td>${a.violation || ''}</td>
+                      <td>${fmt(a.comply_by_date)}</td>`;
       tbody.appendChild(tr);
     });
 
-    /* summary line */
-    const s=document.getElementById('summary');
-    if(!term){s.textContent='';return;}
-    if(rows.length){
-      const a=rows[0].attributes;
-      s.innerHTML=`${rows.length} open violation${rows.length!==1?'s':''} for
-                   <strong>${a.complaint_address}</strong> (${a.SBL})`;
-    }else{
-      s.textContent=`No open violations for "${term}"`;
+    // summary line
+    const s = document.getElementById('summary');
+    if (!term) {
+      // display total count of open violations when no search term is entered
+      s.textContent = `${rows.length} open violation${rows.length !== 1 ? 's' : ''}.`;
+    } else if (rows.length) {
+      const a = rows[0].attributes;
+      s.innerHTML = `${rows.length} open violation${rows.length !== 1 ? 's' : ''} for
+                     <strong>${a.complaint_address}</strong> (${a.SBL})`;
+    } else {
+      s.textContent = `No open violations for "${term}"`;
     }
   }
 
-  /* ---------- search ---------- */
-  async function doSearch(){
-    const term=document.getElementById('search-input').value.trim();
-    const rows=await fetchAllData(term);
-    const lower=term.toLowerCase();
-    const filtered=rows.filter(f=>{
-      const a=f.attributes;
-      const addr=(a.complaint_address||'').toLowerCase();
-      const sbl=(a.SBL||'').toLowerCase();
-      return !term || addr.includes(lower)||sbl.includes(lower);
+  // search 
+  async function doSearch() {
+    const term = document.getElementById('search-input').value.trim();
+    const rows = await fetchAllData(term);
+    const lower = term.toLowerCase();
+    const filtered = rows.filter(f => {
+      const a = f.attributes;
+      const addr = (a.complaint_address || '').toLowerCase();
+      const sbl = (a.SBL || '').toLowerCase();
+      return !term || addr.includes(lower) || sbl.includes(lower);
     });
-    renderTable(filtered,term);
+    renderTable(filtered, term);
   }
 
+  document.addEventListener('DOMContentLoaded', () => {
+    // Prepopulate and auto-search from ?sbl parameter
+    const sblParam = new URLSearchParams(window.location.search).get('sbl');
+    if (sblParam) {
+      const input = document.getElementById('search-input');
+      if (input) input.value = sblParam.trim();  // put SBL into the search box
+    }
 
-  document.addEventListener('DOMContentLoaded',()=>{
-    doSearch();                                           
+    doSearch();  // will use the prefilled SBL if present
     document.getElementById('search-input')
-            .addEventListener('input',()=>doSearch());    // live search
+            .addEventListener('input', () => doSearch());    // live search
   });
 </script>
 </body>
