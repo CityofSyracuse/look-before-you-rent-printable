@@ -102,26 +102,38 @@
     today.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}).toUpperCase();
 
   // data fetch 
-  async function fetchAllData(term) {
-    const url = "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
-    let out = [], offset = 0;
-    const params = {
-      where: term ? `(complaint_address LIKE '${term}%' OR SBL LIKE '${term}%')` : "1=1",
-      outFields: "SBL, complaint_address, violation_date, violation, comply_by_date",
-      outSR: "4326", f: "json", resultRecordCount: 2000
-    };
-    try {
-      while (true) {
-        const { data } = await axios.get(url, { params: { ...params, resultOffset: offset } });
-        out = out.concat(data.features || []);
-        if ((data.features || []).length < 2000) break;
-        offset += 2000;
-      }
-    } catch (e) {
-      console.error(e);
+  async function fetchAllData(term, limit = 2000) {
+  const url = "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
+
+  const t = (term || '').trim().replace(/'/g, "''"); // escape single quotes
+  const where = t
+    ? `status_type_name = 'OPEN' AND (UPPER(complaint_address) LIKE '%${t.toUpperCase()}%' OR UPPER(SBL) LIKE '%${t.toUpperCase()}%')`
+    : `status_type_name = 'OPEN'`;
+  let out = [], offset = 0;
+
+  const params = {
+    where,
+    outFields: "SBL,complaint_address,violation_date,violation,comply_by_date,status_type_name",
+    returnGeometry: false,
+    outSR: "4326",
+    f: "json",
+    resultRecordCount: limit,
+    orderByFields: "violation_date DESC, ObjectId"
+  };
+
+  try {
+    while (true) {
+      const { data } = await axios.get(url, { params: { ...params, resultOffset: offset } });
+      const features = data.features || [];
+      out = out.concat(features);
+      if (features.length < pageSize) break;
+      offset += pageSize;
     }
-    return out;
+  } catch (e) {
+    console.error(e);
   }
+  return out;
+}
 
   // table 
   function renderTable(rows, term) {
@@ -180,7 +192,7 @@
   });
 </script>
 </body>
-  <!-- //New add - BH************** -->
+  <!-- footer -->
           <footer id="ember189" class="site-footer ember-view">  <div class="custom-footer">
         <div id="ember190" class="markdown-card ember-view">  <link>
     <link>
@@ -214,5 +226,4 @@
     </div>
       </div>
     </footer>
-      <!-- //End of New add - BH************** -->
 </html>
