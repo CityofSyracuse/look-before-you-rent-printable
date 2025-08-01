@@ -103,7 +103,7 @@
 
   // data fetch 
   async function fetchAllData(term) {
-    const url = "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
+    const url = "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query?where=status_type_name%20%3D%20%27OPEN%27&outFields=*&outSR=4326&f=json";
     let out = [], offset = 0;
     const params = {
       where: term ? `(complaint_address LIKE '${term}%' OR SBL LIKE '${term}%')` : "1=1",
@@ -180,7 +180,7 @@
   });
 </script>
 </body>
-  <!-- //New add - BH************** -->
+  <!-- footer -->
           <footer id="ember189" class="site-footer ember-view">  <div class="custom-footer">
         <div id="ember190" class="markdown-card ember-view">  <link>
     <link>
@@ -214,5 +214,4 @@
     </div>
       </div>
     </footer>
-      <!-- //End of New add - BH************** -->
 </html>
