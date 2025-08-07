@@ -60,6 +60,7 @@
 </head>
 
 <body>
+<div id="pdf-root">
 <div class="container">
 
   <img src="assets/NBD_Lockups_Blue.png" alt="Code Enforcement Logo">
@@ -70,7 +71,6 @@
   <div class="info-columns">
     <div id="summary" class="info-column"></div>
   </div>
-
   <div class="table-container table-responsive">
     <div class="search-container">
       <input class="form-control" id="search-input" 
@@ -90,8 +90,14 @@
     <div id="no-results" style="display:none;">No lots found with violations.</div>
   </div>
 </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<!-- html2pdf library  -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+        integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
   // helpers
   const fmt = v => v 
@@ -110,6 +116,7 @@
     ? `status_type_name = 'OPEN' AND (UPPER(complaint_address) LIKE '%${t.toUpperCase()}%' OR UPPER(SBL) LIKE '%${t.toUpperCase()}%')`
     : `status_type_name = 'OPEN'`;
   let out = [], offset = 0;
+  const pageSize = limit; 
 
   const params = {
     where,
@@ -117,7 +124,7 @@
     returnGeometry: false,
     outSR: "4326",
     f: "json",
-    resultRecordCount: limit,
+    resultRecordCount: pageSize,
     orderByFields: "violation_date DESC, ObjectId"
   };
 
@@ -178,6 +185,22 @@
     renderTable(filtered, term);
   }
 
+    // Build PDF and open
+  function generatePdf(filename = "Code_Violations_Printable.pdf"){
+    const element = document.getElementById('pdf-root');
+    const opt = {
+      margin:12,
+      filename,
+      image:{ type:'jpeg', quality:0.98 },
+      html2canvas:{ scale:2, useCORS:true, letterRendering:true },
+      jsPDF:{ unit:'pt', format:'letter', orientation:'portrait' },
+      pagebreak:{ mode:['css','legacy'] }
+    };
+    html2pdf().set(opt).from(element).toPdf().get('pdf').then(pdf=>{
+      window.open(pdf.output('bloburl'),'_blank');
+    }).catch(err=>console.error('PDF generation failed:',err));
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     // Prepopulate and auto-search from ?sbl parameter
     const sblParam = new URLSearchParams(window.location.search).get('sbl');
@@ -185,8 +208,15 @@
       const input = document.getElementById('search-input');
       if (input) input.value = sblParam.trim();  // put SBL into the search box
     }
+     doSearch().then(() => {                    // will use the prefilled SBL if present & then generate pdf when pop up used
+      if (sblParam) {
+      setTimeout(() => {
+        const safe = sblParam.replace(/[^a-zA-Z0-9._-]/g, '_');
+        generatePdf(`Code_Violations_${safe}.pdf`);
+      }, 50);
+    }
+  });
 
-    doSearch();  // will use the prefilled SBL if present
     document.getElementById('search-input')
             .addEventListener('input', () => doSearch());    // live search
   });
