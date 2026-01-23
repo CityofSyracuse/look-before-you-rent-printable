@@ -1,255 +1,361 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Code Violations Printable</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Code Violations Printable</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&family=Rubik+Mono+One&display=swap" rel="stylesheet"/>
-  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"/>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&family=Rubik+Mono+One&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
 
-  <style>
-
-        body{
-       font-family: "Rubik", sans-serif;
-        background-color: #D3D3D3; 
-        color: #003153; 
+    <style>
+      body {
+        font-family: "Rubik", sans-serif;
+        background-color: #d3d3d3;
+        color: #003153;
         padding: 20px;
         line-height: 1.6;
-
-    }
-    .container { max-width: 900px; }
-
-    .main-heading {
-      font-family: "Rubik Mono One", sans-serif;
-      font-size: 2.2rem;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      color: #003153;
-    }
-
-    .sub-heading{
-      font-size:1rem;
-      font-weight:700;
-      text-transform:uppercase;
-      color: #003153;
-
-    }
-
-    .table-container {
-      background: white;
-      color: #fff;
-      padding: 15px;
-      border-radius: 8px;
-      font-size: 1rem;
-      margin-top: 20px;
-    }
-    .table-container table { width: 100%; border-collapse: collapse; text-align: left; }
-    .table-container th { background: #003153 !important; color: #ffffff; padding: 10px; text-transform: uppercase; }
-    .table-container td { color: #003153; background: #EDD918; padding: 10px; border-bottom: 1px solid #ccc; }
-
-    /* Search */
-    .search-container { margin-bottom: 15px; }
-    .search-container input { width: 100%; padding: 10px; border: none; border-radius: 4px; font-size: 1rem; }
-
-    @media(max-width:768px) {
-      .main-heading { text-align: center; font-size: 1.8rem; }
-      .sub-heading { text-align: center; }
-    }
-
-    .city-flag {
-      width: 175px;
-      height: 100px;
-    }
-     @media print {
-      * {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
       }
-      .search-container { display: none !important; }
-      @page {
-        size: Letter;               
-        margin: 0.5in;              
+      .container {
+        max-width: 900px;
       }
-    }
 
-  </style>
-</head>
-
-<body>
-<div id="pdf-root">
-<div class="container">
-
-  <img src="assets/NBD_Lockups_Blue.png" alt="Code Enforcement Logo">
-  <p class="sub-heading">As of <span id="current-date" class="date-display"> </span> there are </p>
-
-
-  <!-- results summary goes here -->
-  <div class="info-columns">
-    <div id="summary" class="info-column"></div>
-  </div>
-  <div class="table-container table-responsive">
-    <div class="search-container">
-      <input class="form-control" id="search-input" 
-             placeholder="Search by Section-Block-Lot (SBL) or address…" />
-    </div>
-
-    <table class="table table-striped" id="lbyr-table">
-      <thead>
-        <tr>
-          <th>SBL</th><th>Address</th><th>Violation&nbsp;Date</th>
-          <th>Violation</th><th>Comply&nbsp;By</th>
-        </tr>
-      </thead>
-      <tbody id="lbyr-table-body"></tbody>
-    </table>
-
-    <div id="no-results" style="display:none;">No lots found with violations.</div>
-  </div>
-</div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
-<script>
-  // helpers
-  const fmt = v => v 
-    ? new Date(v).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}) 
-    : '';
-  const today = new Date();
-  document.getElementById('current-date').textContent =
-    today.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}).toUpperCase();
-
-  // data fetch 
-  async function fetchAllData(term, limit = 2000) {
-  const url = "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
-
-  const t = (term || '').trim().replace(/'/g, "''"); // escape single quotes
-  const where = t
-    ? `status_type_name = 'OPEN' AND (UPPER(complaint_address) LIKE '%${t.toUpperCase()}%' OR UPPER(SBL) LIKE '%${t.toUpperCase()}%')`
-    : `status_type_name = 'OPEN'`;
-  let out = [], offset = 0;
-  const pageSize = limit; 
-
-  const params = {
-    where,
-    outFields: "SBL,complaint_address,violation_date,violation,comply_by_date,status_type_name",
-    returnGeometry: false,
-    outSR: "4326",
-    f: "json",
-    resultRecordCount: pageSize,
-    orderByFields: "violation_date DESC, ObjectId"
-  };
-
-  try {
-    while (true) {
-      const { data } = await axios.get(url, { params: { ...params, resultOffset: offset } });
-      const features = data.features || [];
-      out = out.concat(features);
-      if (features.length < pageSize) break;
-      offset += pageSize;
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  return out;
-}
-
-  // table 
-  function renderTable(rows, term) {
-    const tbody = document.getElementById('lbyr-table-body');
-    tbody.innerHTML = '';
-    document.getElementById('no-results').style.display = rows.length ? 'none' : 'block';
-
-    rows.forEach(f => {
-      const a = f.attributes;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${a.SBL || ''}</td><td>${a.complaint_address || ''}</td>
-                      <td>${fmt(a.violation_date)}</td><td>${a.violation || ''}</td>
-                      <td>${fmt(a.comply_by_date)}</td>`;
-      tbody.appendChild(tr);
-    });
-
-    // summary line
-    const s = document.getElementById('summary');
-    if (!term) {
-      // display total count of open violations when no search term is entered
-      s.textContent = `${rows.length} open violation${rows.length !== 1 ? 's' : ''}.`;
-    } else if (rows.length) {
-      const a = rows[0].attributes;
-      s.innerHTML = `${rows.length} open violation${rows.length !== 1 ? 's' : ''} for
-                     <strong>${a.complaint_address}</strong> (${a.SBL})`;
-    } else {
-      s.textContent = `No open violations for "${term}"`;
-    }
-  }
-
-  // search 
-  async function doSearch() {
-    const term = document.getElementById('search-input').value.trim();
-    const rows = await fetchAllData(term);
-    const lower = term.toLowerCase();
-    const filtered = rows.filter(f => {
-      const a = f.attributes;
-      const addr = (a.complaint_address || '').toLowerCase();
-      const sbl = (a.SBL || '').toLowerCase();
-      return !term || addr.includes(lower) || sbl.includes(lower);
-    });
-    renderTable(filtered, term);
-  }
-  function triggerPrint() {window.print();}
-
-  document.addEventListener('DOMContentLoaded', () => {
-    // Prepopulate and auto-search from ?sbl parameter
-    const sblParam = new URLSearchParams(window.location.search).get('sbl');
-    if (sblParam) {
-      const input = document.getElementById('search-input');
-      if (input) input.value = sblParam.trim();  // put SBL into the search box
-    }
-     doSearch().then(() => {                    // will use the prefilled SBL if present
-      if (sblParam) {
-        setTimeout(() => {
-          triggerPrint();
-        }, 50);
+      .main-heading {
+        font-family: "Rubik Mono One", sans-serif;
+        font-size: 2.2rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #003153;
       }
-    });
-    document.getElementById('search-input')
-            .addEventListener('input', () => doSearch());    // live search
-  });
-</script>
-</body>
-  <!-- footer -->
-          <footer id="ember189" class="site-footer ember-view">  <div class="custom-footer">
-        <div id="ember190" class="markdown-card ember-view">  <link>
-    <link>
-    <link>
 
-    <div class="footer-background">
-      
+      .sub-heading {
+        font-size: 1rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #003153;
+      }
+
+      .table-container {
+        background: white;
+        color: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 1rem;
+        margin-top: 20px;
+      }
+      .table-container table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+      .table-container th {
+        background: #003153 !important;
+        color: #ffffff;
+        padding: 10px;
+        text-transform: uppercase;
+      }
+      .table-container td {
+        color: #003153;
+        background: #edd918;
+        padding: 10px;
+        border-bottom: 1px solid #ccc;
+      }
+
+      /* Search */
+      .search-container {
+        margin-bottom: 15px;
+      }
+      .search-container input {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+      }
+
+      @media (max-width: 768px) {
+        .main-heading {
+          text-align: center;
+          font-size: 1.8rem;
+        }
+        .sub-heading {
+          text-align: center;
+        }
+      }
+
+      .city-flag {
+        width: 175px;
+        height: 100px;
+      }
+      @media print {
+        * {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .search-container {
+          display: none !important;
+        }
+        @page {
+          size: Letter;
+          margin: 0.5in;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="pdf-root">
       <div class="container">
-        <div class="row">
-          <div class="col-4">
-            <br>
-            <img src="assets/First Light Flag (150 x 150 px).png" alt="City of Syracuse First Light Flag">
-            <br>
-            <br>
-            <a href="http://www.syr.gov">  © City of Syracuse 2025</a>
+        <img src="assets/NBD_Lockups_Blue.png" alt="Code Enforcement Logo" />
+        <p class="sub-heading">
+          As of <span id="current-date" class="date-display"> </span> there are
+        </p>
 
+        <!-- results summary goes here -->
+        <div class="info-columns">
+          <div id="summary" class="info-column"></div>
+        </div>
+        <div class="table-container table-responsive">
+          <div class="search-container">
+            <input
+              class="form-control"
+              id="search-input"
+              placeholder="Search by Section-Block-Lot (SBL) or address…"
+            />
           </div>
-          <div class="col-4">
-            <br>
-            <p>Code Enforcement<br>
-            One Park Place | 300 S. State Street<br>
-            Syracuse, NY 13202<br>
-            </p>
-            <a href="mailto:CodeEnforcement@syr.gov"><u>Email Us</u></a><br><br>
-            
+
+          <table class="table table-striped" id="lbyr-table">
+            <thead>
+              <tr>
+                <th>SBL</th>
+                <th>Address</th>
+                <th>Violation&nbsp;Date</th>
+                <th>Violation</th>
+                <th>Comply&nbsp;By</th>
+              </tr>
+            </thead>
+            <tbody id="lbyr-table-body"></tbody>
+          </table>
+
+          <div id="no-results" style="display: none">
+            No lots found with violations.
+          </div>
+          <div
+            id="load-error"
+            style="
+              display: none;
+              margin-top: 10px;
+              padding: 10px;
+              border: 1px solid #003153;
+              color: #003153;
+              background: #fff;
+            "
+          >
+            Couldn’t load violations. This usually happens when a
+            network/security setting blocks required web requests. Try a
+            different browser or hotspot, or contact IT.
           </div>
         </div>
-        
       </div>
     </div>
-    </div>
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
+
+    <script>
+      // helpers
+      const fmt = (v) =>
+        v
+          ? new Date(v).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })
+          : "";
+      const today = new Date();
+      document.getElementById("current-date").textContent = today
+        .toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+        .toUpperCase();
+      let __LBYR_LOAD_ERROR__ = null;
+      // data fetch
+      async function fetchAllData(term, limit = 2000) {
+        const url =
+          "https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_V2/FeatureServer/0/query";
+
+        const t = (term || "").trim().replace(/'/g, "''"); // escape single quotes
+        const where = t
+          ? `UPPER(status_type_name) = 'OPEN' AND (UPPER(complaint_address) LIKE '%${t.toUpperCase()}%' OR UPPER(SBL) LIKE '%${t.toUpperCase()}%')`
+          : `UPPER(status_type_name) = 'OPEN'`;
+
+        let out = [],
+          offset = 0;
+        const pageSize = limit;
+
+        const params = {
+          where,
+          outFields:
+            "SBL,complaint_address,violation_date,violation,comply_by_date,status_type_name",
+          returnGeometry: false,
+          outSR: "4326",
+          f: "json",
+          resultRecordCount: pageSize,
+          orderByFields: "violation_date DESC, ObjectId",
+        };
+
+        __LBYR_LOAD_ERROR__ = null;
+
+        try {
+          while (true) {
+            const qs = new URLSearchParams({
+              ...params,
+              resultOffset: offset,
+              _ts: Date.now(),
+            }).toString();
+            const resp = await fetch(`${url}?${qs}`);
+            const data = await resp.json();
+            if (data && data.error) {
+              throw new Error(
+                `${data.error.code}: ${data.error.message || "ArcGIS query error"}`,
+              );
+            }
+            const features = data.features || [];
+            out = out.concat(features);
+            if (features.length < pageSize) break;
+            offset += pageSize;
+          }
+        } catch (e) {
+          console.error(e);
+          __LBYR_LOAD_ERROR__ = String(e?.message || e);
+        }
+        return out;
+      }
+
+      // table
+      function renderTable(rows, term) {
+        const tbody = document.getElementById("lbyr-table-body");
+        tbody.innerHTML = "";
+
+        const loadErrEl = document.getElementById("load-error");
+        if (__LBYR_LOAD_ERROR__) {
+          loadErrEl.style.display = "block";
+          document.getElementById("no-results").style.display = "none";
+          const s = document.getElementById("summary");
+          s.textContent = "Unable to load violations.";
+          return;
+        } else {
+          loadErrEl.style.display = "none";
+        }
+
+        document.getElementById("no-results").style.display = rows.length
+          ? "none"
+          : "block";
+
+        rows.forEach((f) => {
+          const a = f.attributes;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${a.SBL || ""}</td><td>${a.complaint_address || ""}</td>
+                      <td>${fmt(a.violation_date)}</td><td>${a.violation || ""}</td>
+                      <td>${fmt(a.comply_by_date)}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        // summary line
+        const s = document.getElementById("summary");
+        if (!term) {
+          // display total count of open violations when no search term is entered
+          s.textContent = `${rows.length} open violation${rows.length !== 1 ? "s" : ""}.`;
+        } else if (rows.length) {
+          const a = rows[0].attributes;
+          s.innerHTML = `${rows.length} open violation${rows.length !== 1 ? "s" : ""} for
+                     <strong>${a.complaint_address}</strong> (${a.SBL})`;
+        } else {
+          s.textContent = `No open violations for "${term}"`;
+        }
+      }
+
+      // search
+      async function doSearch() {
+        const term = document.getElementById("search-input").value.trim();
+        const rows = await fetchAllData(term);
+        const lower = term.toLowerCase();
+        const filtered = rows.filter((f) => {
+          const a = f.attributes;
+          const addr = (a.complaint_address || "").toLowerCase();
+          const sbl = (a.SBL || "").toLowerCase();
+          return !term || addr.includes(lower) || sbl.includes(lower);
+        });
+        renderTable(filtered, term);
+      }
+      function triggerPrint() {
+        window.print();
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        // Prepopulate and auto-search from ?sbl parameter
+        const sblParam = new URLSearchParams(window.location.search).get("sbl");
+        if (sblParam) {
+          const input = document.getElementById("search-input");
+          if (input) input.value = sblParam.trim(); // put SBL into the search box
+        }
+        doSearch().then(() => {
+          // will use the prefilled SBL if present
+          if (sblParam) {
+            setTimeout(() => {
+              triggerPrint();
+            }, 50);
+          }
+        });
+        document
+          .getElementById("search-input")
+          .addEventListener("input", () => doSearch()); // live search
+      });
+    </script>
+
+    <!-- footer -->
+    <footer id="ember189" class="site-footer ember-view">
+      <div class="custom-footer">
+        <div id="ember190" class="markdown-card ember-view">
+          <link />
+          <link />
+          <link />
+
+          <div class="footer-background">
+            <div class="container">
+              <div class="row">
+                <div class="col-4">
+                  <br />
+                  <img
+                    src="assets/First Light Flag (150 x 150 px).png"
+                    alt="City of Syracuse First Light Flag"
+                  />
+                  <br />
+                  <br />
+                  <a href="http://www.syr.gov"> © City of Syracuse 2025</a>
+                </div>
+                <div class="col-4">
+                  <br />
+                  <p>
+                    Code Enforcement<br />
+                    One Park Place | 300 S. State Street<br />
+                    Syracuse, NY 13202<br />
+                  </p>
+                  <a href="mailto:CodeEnforcement@syr.gov"><u>Email Us</u></a
+                  ><br /><br />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </footer>
+  </body>
 </html>
